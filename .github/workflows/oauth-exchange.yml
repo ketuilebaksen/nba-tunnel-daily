@@ -1,0 +1,32 @@
+name: oauth-exchange
+on:
+  workflow_dispatch:
+    inputs:
+      redirect_url:
+        description: "Full http://localhost:1/?...code=... URL from browser"
+        required: true
+      code_verifier:
+        description: "PKCE code verifier"
+        required: false
+        default: ""
+
+jobs:
+  exchange:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exchange code for refresh token
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          REDIRECT_URL: ${{ inputs.redirect_url }}
+          CODE_VERIFIER: ${{ inputs.code_verifier }}
+        run: python3 scripts/oauth_exchange.py
+      - name: Save refresh token as repo secret
+        env:
+          GH_TOKEN: ${{ secrets.ADMIN_PAT }}
+        run: |
+          gh secret set YT_REFRESH_TOKEN --body "$(cat refresh_token.txt)" -R "$GITHUB_REPOSITORY"
+          rm -f refresh_token.txt
+          echo "YT_REFRESH_TOKEN secret saved."

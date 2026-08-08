@@ -1,0 +1,47 @@
+{
+  "name": "NBA TUNNEL",
+  "outro_tag": "KNICKS STORIES \u2022 NBA TUNNEL",
+  "editorial": "documentary",
+  "clip_offset": 91,
+  "hook_cut": 4.2,
+  "body_cut": 6.5,
+  "photo_zoom": 0.05,
+  "overlay_kinds": [
+    "lower3",
+    "speech"
+  ],
+  "overlay_every_sec": 45,
+  "bounce": false,
+  "eleven_voice_id": "",
+  "google_voice_early": "en-GB-Chirp3-HD-Puck",
+  "google_voice_late": "en-GB-Chirp3-HD-Orus",
+  "palette": {
+    "primary": [
+      70,
+      130,
+      220
+    ],
+    "secondary": [
+      190,
+      200,
+      220
+    ],
+    "ink": [
+      8,
+      12,
+      24
+    ]
+  },
+  "thumb_template": "thumb_tunnel.png",
+  "thumb_cinematic": true,
+  "thumb_words": [
+    "THE FULL STORY",
+    "EXPLAINED",
+    "WHAT REALLY HAPPENED",
+    "THE TURNING POINT",
+    null,
+    null,
+    null
+  ],
+  "thumb_engine": "ai"
+}

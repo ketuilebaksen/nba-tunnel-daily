@@ -1,0 +1,117 @@
+name: daily-video
+on:
+  schedule:
+    - cron: "0 12 * * *"     # 15:00 Istanbul -> publishes 17:00
+    - cron: "0 20 * * *"     # 23:00 Istanbul -> publishes 01:00
+  workflow_dispatch:
+    inputs:
+      privacy:
+        description: "public / private / unlisted"
+        required: false
+        default: "public"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: render
+  cancel-in-progress: false
+
+jobs:
+  produce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install -q anthropic google-api-python-client google-auth Pillow piper-tts numpy pydub rembg onnxruntime opencv-python-headless
+
+      - name: Generate script (Claude + web search)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          MODEL: ${{ vars.MODEL || 'claude-sonnet-4-5' }}
+          TARGET_MINUTES: ${{ vars.TARGET_MINUTES || '30' }}
+          PRIVACY: ${{ inputs.privacy || 'public' }}
+        run: |
+          # slot 1 (early run) publishes 17:00 Istanbul = 14:00 UTC
+          # slot 2 (late run)  publishes 01:00 Istanbul = 22:00 UTC
+          H=$(date -u +%H)
+          if [ "$H" -lt 16 ]; then export PUBLISH_UTC=14:00; else export PUBLISH_UTC=22:00; fi
+          echo "publish slot -> $PUBLISH_UTC UTC"
+          python3 scripts/generate.py
+
+      - name: Commit content
+        run: |
+          git config user.name "knicks-bot" && git config user.email "bot@knicks.auto"
+          git add content/ && git commit -m "daily $(date +%F)" || echo "nothing to commit"
+          git push || true
+
+      - name: Piper fallback voice
+        run: |
+          mkdir -p assets/voice
+          curl -sL https://github.com/rhasspy/piper/releases/download/v0.0.2/voice-en-us-ryan-high.tar.gz | tar xz -C assets/voice/
+
+      - name: TTS
+        env:
+          GOOGLE_TTS_KEY: ${{ secrets.GOOGLE_TTS_KEY }}
+          ELEVEN_API_KEY: ${{ secrets.ELEVEN_API_KEY }}
+          ELEVEN_VOICE: ${{ vars.ELEVEN_VOICE || 'alex' }}
+          ELEVEN_MODEL: ${{ vars.ELEVEN_MODEL || 'eleven_flash_v2_5' }}
+        run: python3 scripts/tts.py content/current/script.json
+
+      - name: Download media libraries
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p work/broll work/music work/photos
+          gh release download broll -R "$GITHUB_REPOSITORY" -D work/broll || echo "no b-roll release"
+          gh release download music -R "$GITHUB_REPOSITORY" -D work/music || echo "no music release"
+          gh release download photos -R "$GITHUB_REPOSITORY" -D work/photos || echo "no photos release"
+          python3 scripts/photos.py content/current/script.json || echo "auto photos skipped"
+
+      - name: Visuals
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_IMAGE_QUALITY: ${{ vars.OPENAI_IMAGE_QUALITY || 'high' }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_TTS_KEY: ${{ secrets.GOOGLE_TTS_KEY }}
+          IMAGE_MODEL: ${{ vars.IMAGE_MODEL }}
+        run: python3 scripts/visuals.py content/current/script.json
+
+      - name: Sound effects
+        run: python3 scripts/sfx.py
+
+      - name: Assemble
+        run: python3 scripts/assemble.py content/current/script.json
+
+      - name: Upload to YouTube
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+        run: python3 scripts/upload.py content/current/meta.json
+
+      - name: Result summary
+        if: always()
+        run: |
+          echo "## Result" >> $GITHUB_STEP_SUMMARY
+          cat upload_result.json >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "upload failed — check logs" >> $GITHUB_STEP_SUMMARY
+
+      - name: Keep artifacts (2 days)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: video-${{ github.run_number }}
+          path: |
+            work/final.mp4
+            work/thumbnail.jpg
+            upload_result.json
+          retention-days: 2
+          if-no-files-found: ignore
