@@ -25,7 +25,7 @@ MODELS = [
     "gemini-2.0-flash-preview-image-generation",
 ]
 
-HYPE_STYLE = (
+HOUSE_STYLE = (
     "Ultra high quality 16:9 YouTube thumbnail, cinematic sports-hype poster art. "
     "Photoreal basketball arena atmosphere: Madison Square Garden style crowd, "
     "dramatic stage lighting, glowing embers, volumetric light beams, subtle smoke, "
@@ -34,22 +34,6 @@ HYPE_STYLE = (
     "professional colour grading. Composition leaves the lower right area clear. "
     "No watermarks, no logos of other brands, no gibberish text anywhere."
 )
-
-DOC_STYLE = (
-    "Ultra high quality 16:9 YouTube thumbnail in a cinematic sports-documentary "
-    "style. Moody, restrained and premium: deep navy and cool steel-blue palette, "
-    "one warm key light, soft haze, film grain, shallow depth of field, archival "
-    "atmosphere of an empty or dimly lit basketball arena. Editorial composition "
-    "with generous negative space in the lower third. Understated and classy, NOT "
-    "loud or garish. No watermarks, no other brands' logos, no gibberish text."
-)
-
-try:
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    import channel as _CH
-    HOUSE_STYLE = DOC_STYLE if _CH.get("editorial") == "documentary" else HYPE_STYLE
-except Exception:
-    HOUSE_STYLE = HYPE_STYLE
 
 def _key():
     return (os.environ.get("GEMINI_API_KEY", "").strip()
@@ -64,13 +48,9 @@ def build_prompt(scene, word=None, subject=None):
     parts.append(f"Scene: {scene}")
     if word:
         parts.append(
-            f'Render exactly this text in the lower third: "{word}". '
-            + ("Clean bold condensed sans-serif, white with a thin blue underline, "
-               "understated and editorial. "
-               if HOUSE_STYLE is DOC_STYLE else
-               "Heavy extruded 3D display lettering, white and gold with a red "
-               "outline and a soft glow. ")
-            + "Spell it perfectly. No other text in the image.")
+            f'Render exactly this text, large, in the lower right area: "{word}". '
+            "Heavy extruded 3D display lettering, white and gold with a red outline "
+            "and a soft glow. Spell it perfectly. No other text in the image.")
     else:
         parts.append("Do not render any text in the image.")
     return " ".join(parts)
@@ -101,6 +81,125 @@ def _openai_call(prompt, key, timeout=300):
         return base64.b64decode(item["b64_json"])
     with urllib.request.urlopen(item["url"], timeout=timeout) as r:   # url mode
         return r.read()
+
+OPENAI_EDIT_URL = "https://api.openai.com/v1/images/edits"
+
+
+def _multipart(fields, files):
+    """Build a multipart/form-data body. files = [(field, filename, bytes)]."""
+    boundary = "----knicksthumb7f3a9c2b1e"
+    out = bytearray()
+    for k, v in fields.items():
+        out += (f"--{boundary}\r\nContent-Disposition: form-data; "
+                f'name="{k}"\r\n\r\n{v}\r\n').encode()
+    for field, fname, blob in files:
+        ext = os.path.splitext(fname)[1].lower()
+        ctype = "image/png" if ext == ".png" else "image/jpeg"
+        out += (f"--{boundary}\r\nContent-Disposition: form-data; "
+                f'name="{field}"; filename="{fname}"\r\n'
+                f"Content-Type: {ctype}\r\n\r\n").encode()
+        out += blob + b"\r\n"
+    out += f"--{boundary}--\r\n".encode()
+    return bytes(out), f"multipart/form-data; boundary={boundary}"
+
+
+def generate_edit(photo_path, scene, word=None, out=None, timeout=420):
+    """METHOD B — hand the real photo to gpt-image-1 and let it paint the whole
+    thumbnail, text included. Keeps the real face as a reference; likeness and
+    spelling are the model's call. Returns a path or None."""
+    key = _openai_key()
+    if not key or not photo_path or not os.path.exists(photo_path):
+        print("[thumb-ai] edit mode needs OPENAI_API_KEY + a reference photo")
+        return None
+    out = out or os.path.join(BASE, "work", "thumbnail_edit.png")
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    prompt = (
+        "Turn the attached photograph of this basketball player into a "
+        "high-impact 16:9 YouTube thumbnail. KEEP HIS FACE AND LIKENESS EXACTLY "
+        "as in the photo — same face, same skin tone, same hair — but relight "
+        "him dramatically and place him large on the left, cut out from his "
+        "original background. " + HOUSE_STYLE + f" Scene behind him: {scene}")
+    if word:
+        prompt += (f' Render exactly this text, very large, in the right half: '
+                   f'"{word}". Heavy extruded 3D display lettering, white and '
+                   "gold with a red outline and a glow. Spell it perfectly, "
+                   "no other text anywhere.")
+    else:
+        prompt += " Do not render any text."
+    with open(photo_path, "rb") as f:
+        blob = f.read()
+    fields = {"model": "gpt-image-1", "prompt": prompt[:3900],
+              "size": os.environ.get("OPENAI_IMAGE_SIZE", "1536x1024"),
+              "quality": os.environ.get("OPENAI_IMAGE_QUALITY", "high"),
+              "input_fidelity": "high", "n": "1"}
+    body, ctype = _multipart(
+        fields, [("image", os.path.basename(photo_path), blob)])
+    req = urllib.request.Request(
+        OPENAI_EDIT_URL, data=body,
+        headers={"Content-Type": ctype, "Authorization": f"Bearer {key}"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            data = json.load(r)
+        item = data["data"][0]
+        raw = (base64.b64decode(item["b64_json"]) if item.get("b64_json")
+               else urllib.request.urlopen(item["url"], timeout=120).read())
+        with open(out, "wb") as f:
+            f.write(raw)
+        print(f"[thumb-ai] edit-mode thumbnail ({os.path.getsize(out)//1024} KB)")
+        return out
+    except urllib.error.HTTPError as e:
+        msg = ""
+        try:
+            msg = e.read().decode()[:300]
+        except Exception:
+            pass
+        print(f"[thumb-ai] edit HTTP {e.code}: {msg}")
+    except Exception as e:
+        print(f"[thumb-ai] edit failed: {e}")
+    return None
+
+
+BACKDROP_STYLE = (
+    "Ultra high quality 16:9 cinematic sports background plate for a YouTube "
+    "thumbnail. Madison Square Garden style arena atmosphere, dramatic stage "
+    "lighting, volumetric light beams, drifting embers, subtle haze, deep blue "
+    "and vivid orange colour language with fiery accents, rich contrast, "
+    "professional colour grading, shallow depth of field. "
+    "ABSOLUTELY NO PEOPLE, no faces, no crowd close-ups, no text, no letters, "
+    "no numbers, no logos, no watermarks. The left half must stay visually "
+    "simple and slightly darker so a person can be composited on top of it."
+)
+
+
+def generate_backdrop(scene, out=None):
+    """METHOD A, step 1 — an empty, people-free, text-free background plate.
+    The real player photo and the punch word get composited on top of it."""
+    out = out or os.path.join(BASE, "work", "backdrop.png")
+    prompt = f"{BACKDROP_STYLE} Scene: {scene or 'an empty arena at tip-off'}. " \
+             "Remember: no people and no text of any kind."
+    okey = _openai_key()
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    if okey:
+        try:
+            raw = _openai_call(prompt, okey)
+            with open(out, "wb") as f:
+                f.write(raw)
+            print(f"[thumb-ai] backdrop OK ({os.path.getsize(out)//1024} KB)")
+            return out
+        except Exception as e:
+            print(f"[thumb-ai] backdrop failed: {e}")
+    key = _key()
+    for model in [m for m in MODELS if m]:
+        try:
+            raw = _call(model, prompt, key)
+            with open(out, "wb") as f:
+                f.write(raw)
+            print(f"[thumb-ai] backdrop OK via {model}")
+            return out
+        except Exception as e:
+            print(f"[thumb-ai] backdrop {model} failed: {e}")
+    return None
+
 
 def _call(model, prompt, key, timeout=180):
     body = {

@@ -1,0 +1,101 @@
+name: test-video
+# Full pipeline WITHOUT uploading to YouTube.
+# Produces the video, the thumbnail and the title as downloadable artifacts
+# so the owner can approve everything before anything reaches the channel.
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: "Video length in minutes"
+        required: false
+        default: "15"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: render
+  cancel-in-progress: false
+
+jobs:
+  produce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install -q anthropic google-api-python-client google-auth Pillow piper-tts numpy pydub rembg onnxruntime opencv-python-headless
+
+      - name: Generate script (Claude + web search)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          MODEL: ${{ vars.MODEL || 'claude-sonnet-4-5' }}
+          TARGET_MINUTES: ${{ inputs.minutes || '15' }}
+          PRIVACY: "skip"
+        run: python3 scripts/generate.py
+
+      - name: Piper fallback voice
+        run: |
+          mkdir -p assets/voice
+          curl -sL https://github.com/rhasspy/piper/releases/download/v0.0.2/voice-en-us-ryan-high.tar.gz | tar xz -C assets/voice/
+
+      - name: TTS
+        env:
+          GOOGLE_TTS_KEY: ${{ secrets.GOOGLE_TTS_KEY }}
+          ELEVEN_API_KEY: ${{ secrets.ELEVEN_API_KEY }}
+          ELEVEN_VOICE: ${{ vars.ELEVEN_VOICE || 'alex' }}
+          ELEVEN_MODEL: ${{ vars.ELEVEN_MODEL || 'eleven_flash_v2_5' }}
+        run: python3 scripts/tts.py content/current/script.json
+
+      - name: Download media libraries
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p work/broll work/music work/photos
+          gh release download broll -R "$GITHUB_REPOSITORY" -D work/broll || echo "no b-roll release"
+          gh release download music -R "$GITHUB_REPOSITORY" -D work/music || echo "no music release"
+          gh release download photos -R "$GITHUB_REPOSITORY" -D work/photos || echo "no photos release"
+          python3 scripts/photos.py content/current/script.json || echo "auto photos skipped"
+
+      - name: Visuals
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_IMAGE_QUALITY: ${{ vars.OPENAI_IMAGE_QUALITY || 'high' }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_TTS_KEY: ${{ secrets.GOOGLE_TTS_KEY }}
+          IMAGE_MODEL: ${{ vars.IMAGE_MODEL }}
+        run: python3 scripts/visuals.py content/current/script.json
+
+      - name: Sound effects
+        run: python3 scripts/sfx.py
+
+      - name: Assemble
+        run: python3 scripts/assemble.py content/current/script.json
+
+      - name: Result summary
+        if: always()
+        run: |
+          echo "## Test video (not uploaded)" >> $GITHUB_STEP_SUMMARY
+          python3 -c "import json;m=json.load(open('content/current/meta.json'));print('**Title:** '+m['title'])" >> $GITHUB_STEP_SUMMARY 2>/dev/null || true
+          ls -lh work/final.mp4 >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "no video" >> $GITHUB_STEP_SUMMARY
+
+      - name: Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-${{ github.run_number }}
+          path: |
+            work/final.mp4
+            work/thumbnail.jpg
+            work/thumbnail_yt.jpg
+            content/current/meta.json
+            content/current/script.json
+          retention-days: 7
+          if-no-files-found: ignore

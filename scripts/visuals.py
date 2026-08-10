@@ -177,7 +177,39 @@ def main():
         engine = _CH.get("thumb_engine", "ai")
     except Exception:
         engine = "ai"
-    if engine == "ai":
+    _pd = os.path.join(BASE, "work", "photos")
+    _n = len(os.listdir(_pd)) if os.path.isdir(_pd) else 0
+    print(f"[visuals] photo library: {_n} files in work/photos")
+
+    if engine == "none":
+        # the owner designs the cover by hand — see work/kapak_brief.md
+        print("[visuals] thumbnail engine off — no cover generated")
+        made = True
+    if engine == "bigtype":
+        # giant word behind the real player, AI arena plate, text drawn by us
+        try:
+            import thumb_ai, thumb_hybrid, thumb_style
+            people = thumb_hybrid.key_people(script, limit=2)
+            for nm, _p, n in people:
+                print(f"[visuals] thumbnail person: {nm} ({n} mentions)")
+            bg = thumb_ai.generate_backdrop(script.get("thumb_prompt"))
+            thumb_style.bigtype(script.get("thumb_word") or "BREAKING NEWS",
+                                photo=people[0][1] if people else None,
+                                photo2=people[1][1] if len(people) > 1 else None,
+                                bg=bg, out=out_thumb)
+            made = os.path.exists(out_thumb)
+        except Exception as e:
+            print(f"[visuals] bigtype thumbnail failed ({e})")
+    if not made and engine == "hybrid":
+        # real player photo + AI background plate + text drawn by us
+        try:
+            import thumb_hybrid
+            thumb_hybrid.build(script, script.get("thumb_word"),
+                               script.get("thumb_prompt"), out_thumb)
+            made = os.path.exists(out_thumb)
+        except Exception as e:
+            print(f"[visuals] hybrid thumbnail failed ({e})")
+    if not made and engine in ("ai", "hybrid", "bigtype"):
         try:
             import thumb_ai
             raw = thumb_ai.generate(script.get("thumb_prompt"),
@@ -191,9 +223,6 @@ def main():
     if not made:
         try:
             from thumbnail import make_thumb, players_from_script, word_for_today
-            _pd = os.path.join(BASE, "work", "photos")
-            _n = len(os.listdir(_pd)) if os.path.isdir(_pd) else 0
-            print(f"[visuals] photo library: {_n} files in work/photos")
             make_thumb(script.get("thumb_word") or word_for_today(script),
                        players_from_script(script), out_thumb)
         except Exception as e:

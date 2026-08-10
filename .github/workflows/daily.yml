@@ -1,8 +1,9 @@
 name: daily-video
 on:
   schedule:
-    - cron: "0 12 * * *"     # 15:00 Istanbul -> publishes 17:00
-    - cron: "0 20 * * *"     # 23:00 Istanbul -> publishes 01:00
+    # Istanbul = UTC+3. Each run starts ~2h before the upload deadline.
+    - cron: "0 1 * * *"      # starts 04:00 Istanbul -> uploaded by 06:00 -> publishes 12:00
+    - cron: "0 10 * * *"     # starts 13:00 Istanbul -> uploaded by 15:00 -> publishes 18:00
   workflow_dispatch:
     inputs:
       privacy:
@@ -12,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 concurrency:
   group: render
@@ -33,23 +35,32 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
           pip install -q anthropic google-api-python-client google-auth Pillow piper-tts numpy pydub rembg onnxruntime opencv-python-headless
 
+      - name: Pick today's slot
+        run: |
+          # morning run  -> publishes 12:00 Istanbul = 09:00 UTC
+          # afternoon run-> publishes 18:00 Istanbul = 15:00 UTC
+          H=$(date -u +%H)
+          if [ "$H" -lt 6 ]; then
+            echo "SLOT=early"        >> $GITHUB_ENV
+            echo "PUBLISH_UTC=09:00" >> $GITHUB_ENV
+          else
+            echo "SLOT=late"         >> $GITHUB_ENV
+            echo "PUBLISH_UTC=15:00" >> $GITHUB_ENV
+          fi
+
       - name: Generate script (Claude + web search)
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           MODEL: ${{ vars.MODEL || 'claude-sonnet-4-5' }}
-          TARGET_MINUTES: ${{ vars.TARGET_MINUTES || '30' }}
+          TARGET_MINUTES: ${{ vars.TARGET_MINUTES || '15' }}
           PRIVACY: ${{ inputs.privacy || 'public' }}
         run: |
-          # slot 1 (early run) publishes 17:00 Istanbul = 14:00 UTC
-          # slot 2 (late run)  publishes 01:00 Istanbul = 22:00 UTC
-          H=$(date -u +%H)
-          if [ "$H" -lt 16 ]; then export PUBLISH_UTC=14:00; else export PUBLISH_UTC=22:00; fi
-          echo "publish slot -> $PUBLISH_UTC UTC"
+          echo "slot=$SLOT publish=$PUBLISH_UTC UTC"
           python3 scripts/generate.py
 
       - name: Commit content
         run: |
-          git config user.name "knicks-bot" && git config user.email "bot@knicks.auto"
+          git config user.name "tunnel-bot" && git config user.email "bot@tunnel.auto"
           git add content/ && git commit -m "daily $(date +%F)" || echo "nothing to commit"
           git push || true
 
@@ -68,12 +79,16 @@ jobs:
 
       - name: Download media libraries
         env:
-          GH_TOKEN: ${{ github.token }}
+          # MEDIA_REPO lets this channel borrow the b-roll/music already
+          # uploaded to the other repo instead of re-uploading gigabytes.
+          GH_TOKEN: ${{ secrets.ADMIN_PAT || github.token }}
+          MEDIA_REPO: ${{ vars.MEDIA_REPO || github.repository }}
         run: |
           mkdir -p work/broll work/music work/photos
-          gh release download broll -R "$GITHUB_REPOSITORY" -D work/broll || echo "no b-roll release"
-          gh release download music -R "$GITHUB_REPOSITORY" -D work/music || echo "no music release"
-          gh release download photos -R "$GITHUB_REPOSITORY" -D work/photos || echo "no photos release"
+          echo "media source: $MEDIA_REPO"
+          gh release download broll -R "$MEDIA_REPO" -D work/broll || echo "no b-roll release"
+          gh release download music -R "$MEDIA_REPO" -D work/music || echo "no music release"
+          gh release download photos -R "$MEDIA_REPO" -D work/photos || echo "no photos release"
           python3 scripts/photos.py content/current/script.json || echo "auto photos skipped"
 
       - name: Visuals
@@ -96,7 +111,25 @@ jobs:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          SKIP_THUMBNAIL: ${{ vars.SKIP_THUMBNAIL || '1' }}
         run: python3 scripts/upload.py content/current/meta.json
+
+      - name: Kapak notu (issue + e-posta)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/brief.py content/current/script.json \
+                                   content/current/meta.json > /dev/null || exit 0
+          cat work/kapak_brief.md >> $GITHUB_STEP_SUMMARY
+          T=$(python3 -c "import json;print(json.load(open('content/current/meta.json'))['title'][:70])")
+          gh issue create -R "$GITHUB_REPOSITORY" \
+            --title "KAPAK GEREKLI — $T" \
+            --body-file work/kapak_brief.md \
+            --assignee "${{ github.repository_owner }}" \
+          || gh issue create -R "$GITHUB_REPOSITORY" \
+            --title "KAPAK GEREKLI — $T" \
+            --body-file work/kapak_brief.md
 
       - name: Result summary
         if: always()
@@ -112,6 +145,8 @@ jobs:
           path: |
             work/final.mp4
             work/thumbnail.jpg
+            work/thumbnail_yt.jpg
+            content/current/meta.json
             upload_result.json
           retention-days: 2
           if-no-files-found: ignore

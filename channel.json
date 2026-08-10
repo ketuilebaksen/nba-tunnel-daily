@@ -1,6 +1,6 @@
 {
   "name": "NBA TUNNEL",
-  "outro_tag": "KNICKS STORIES \u2022 NBA TUNNEL",
+  "outro_tag": "KNICKS STORIES • NBA TUNNEL",
   "editorial": "documentary",
   "clip_offset": 91,
   "hook_cut": 4.2,
@@ -12,8 +12,8 @@
   ],
   "overlay_every_sec": 45,
   "bounce": false,
-  "eleven_voice_id": "",
-  "google_voice_early": "en-GB-Chirp3-HD-Puck",
+  "eleven_voice_id": "JBFqnCBsd6RMkjVDRZzb",
+  "google_voice_early": "en-GB-Chirp3-HD-Orus",
   "google_voice_late": "en-GB-Chirp3-HD-Orus",
   "palette": {
     "primary": [
@@ -43,5 +43,6 @@
     null,
     null
   ],
-  "thumb_engine": "ai"
+  "thumb_engine": "none",
+  "tts_engine": "eleven"
 }

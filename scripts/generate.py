@@ -6,7 +6,7 @@ NY Knicks news and produce content/current/script.json + meta.json.
 
 Env: ANTHROPIC_API_KEY  (required)
      MODEL              (default: claude-sonnet-4-5)
-     TARGET_MINUTES     (default: 30)
+     TARGET_MINUTES     (default: 15)
 """
 import json, os, re, sys, datetime
 
@@ -19,8 +19,10 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CUR = os.path.join(BASE, "content", "current")
 LOG = os.path.join(BASE, "content", "topics_log.txt")
 MODEL = os.environ.get("MODEL", "claude-sonnet-4-5")
-MINUTES = int(os.environ.get("TARGET_MINUTES", "30"))
+MINUTES = int(os.environ.get("TARGET_MINUTES", "15"))
 WORDS = MINUTES * 150  # ~150 wpm narration
+PARAS = max(8, round(WORDS / 85))                 # ~85 words per paragraph
+SECTIONS = f"{max(4, PARAS // 7)}-{max(5, PARAS // 5)}"
 
 TITLE_GUIDE = """
 TITLE STYLE (match the channel's proven patterns):
@@ -111,9 +113,10 @@ franchise history parallels. Connect today to the bigger picture.
 
 Then write an energetic, conversational ~{WORDS}-word English narration script
 (target {MINUTES} minutes at ~150 wpm). Short sentences. No abbreviations that read
-badly aloud (say "points per game", not "PPG"). 6-9 sections, 45-60 paragraphs total,
-60-110 words each. EVERY paragraph must have card_title and card_lines filled.
-Total word count across all paragraph texts MUST be between {WORDS-500} and {WORDS+300}.
+badly aloud (say "points per game", not "PPG"). {SECTIONS} sections, about {PARAS}
+paragraphs total, 60-110 words each. EVERY paragraph must have card_title and
+card_lines filled.
+Total word count across all paragraph texts MUST be between {WORDS-250} and {WORDS+250}.
 
 {TITLE_GUIDE}
 {SCHEMA_HINT}
@@ -132,7 +135,7 @@ def validate(d):
         for p in s["paragraphs"]:
             assert p.get("text") and p.get("card_title") and p.get("card_lines"), \
                 "paragraph missing card fields"
-    assert words > WORDS - 1200, f"script too short: {words} words"
+    assert words > WORDS * 0.82, f"script too short: {words} words (need {int(WORDS*0.82)})"
     return words, n_para
 
 def main():
@@ -142,7 +145,9 @@ def main():
         recent = "\n".join(open(LOG).read().strip().splitlines()[-14:])
 
     import datetime as _dt
-    slot = "early" if _dt.datetime.utcnow().hour < 16 else "late"
+    slot = os.environ.get("SLOT", "").strip().lower()
+    if slot not in ("early", "late"):
+        slot = "early" if _dt.datetime.utcnow().hour < 16 else "late"
     print(f"[generate] slot: {slot}")
     client = anthropic.Anthropic()
     prompt = build_prompt(today, recent, slot)

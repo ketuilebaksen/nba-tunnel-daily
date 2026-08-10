@@ -1,0 +1,52 @@
+name: thumb-test
+on:
+  workflow_dispatch:
+    inputs:
+      title:
+        description: "Video title to design a thumbnail for"
+        required: true
+      variants:
+        description: "How many candidates per method (1-3)"
+        required: false
+        default: "2"
+      method:
+        description: "style (big-type, default) / a / b"
+        required: false
+        default: "style"
+
+jobs:
+  thumb:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: pip install -q anthropic Pillow numpy rembg onnxruntime opencv-python-headless
+
+      - name: Generate thumbnails
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_TTS_KEY: ${{ secrets.GOOGLE_TTS_KEY }}
+          OPENAI_IMAGE_QUALITY: ${{ vars.OPENAI_IMAGE_QUALITY || 'high' }}
+          IMAGE_MODEL: ${{ vars.IMAGE_MODEL }}
+          MODEL: ${{ vars.MODEL || 'claude-sonnet-4-5' }}
+          TITLE: ${{ inputs.title }}
+          VARIANTS: ${{ inputs.variants }}
+          METHOD: ${{ inputs.method }}
+        run: python3 scripts/thumb_test.py
+
+      - name: Upload candidates
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: thumbnails-${{ github.run_number }}
+          path: work/test/
+          retention-days: 7
+          if-no-files-found: warn

@@ -61,6 +61,9 @@ def main():
         body["status"]["privacyStatus"] = "private"
         body["status"]["publishAt"] = pub
         print(f"[upload] scheduled publish at {pub}")
+    # owner makes the thumbnail by hand -> upload the video without one
+    skip_thumb = (os.environ.get("SKIP_THUMBNAIL", "0") == "1"
+                  and not os.path.exists(manual_thumb))
     y = yt()
     media = MediaFileUpload(video, chunksize=16 * 1024 * 1024, resumable=True,
                             mimetype="video/mp4")
@@ -84,14 +87,21 @@ def main():
             raise
     vid = resp["id"]
     print(f"[upload] id={vid} privacy={resp['status']['privacyStatus']}")
-    try:
-        y.thumbnails().set(videoId=vid, media_body=MediaFileUpload(thumb)).execute()
-        print("[upload] thumbnail set")
-    except HttpError as e:
-        print(f"[upload] thumbnail skipped ({e.resp.status if e.resp else '?'})")
+    if skip_thumb:
+        print("[upload] no thumbnail uploaded — owner designs it manually")
+    else:
+        try:
+            y.thumbnails().set(videoId=vid,
+                               media_body=MediaFileUpload(thumb)).execute()
+            print("[upload] thumbnail set")
+        except HttpError as e:
+            print(f"[upload] thumbnail skipped ({e.resp.status if e.resp else '?'})")
     with open("upload_result.json", "w") as f:
         json.dump({"id": vid, "url": f"https://youtu.be/{vid}",
+                   "studio": f"https://studio.youtube.com/video/{vid}/edit",
                    "privacy": resp["status"]["privacyStatus"],
+                   "publish_at": meta.get("publish_at"),
+                   "needs_thumbnail": skip_thumb,
                    "title": meta["title"]}, f, indent=1)
     print(f"[upload] DONE -> https://youtu.be/{vid}")
 

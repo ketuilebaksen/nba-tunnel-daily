@@ -81,7 +81,9 @@ GOOGLE_API = "https://texttospeech.googleapis.com/v1/text:synthesize"
 def google_voice():
     """Pick the voice for this slot (two different hosts per day)."""
     import datetime
-    late = datetime.datetime.utcnow().hour >= 16
+    slot = os.environ.get("SLOT", "").strip().lower()
+    late = (slot == "late" if slot in ("early", "late")
+            else datetime.datetime.utcnow().hour >= 16)
     default = CH_VOICE_LATE if late else CH_VOICE_EARLY
     return os.environ.get("GOOGLE_VOICE_LATE" if late else "GOOGLE_VOICE_EARLY",
                           os.environ.get("GOOGLE_VOICE", default))
@@ -143,8 +145,19 @@ def main():
         script = json.load(f)
     key = os.environ.get("ELEVEN_API_KEY", "").strip()
     gkey = os.environ.get("GOOGLE_TTS_KEY", "").strip()
-    engine = os.environ.get("TTS_ENGINE") or (
-        "google" if gkey else ("eleven" if key else "piper"))
+    # channel.json decides the narrator; env can still override for a test run
+    try:
+        ch_engine = CH.get("tts_engine", "").strip().lower()
+    except Exception:
+        ch_engine = ""
+    engine = (os.environ.get("TTS_ENGINE", "").strip().lower() or ch_engine
+              or ("google" if gkey else ("eleven" if key else "piper")))
+    if engine == "eleven" and not key:
+        print("[tts] ELEVEN_API_KEY missing — falling back")
+        engine = "google" if gkey else "piper"
+    if engine == "google" and not gkey:
+        print("[tts] GOOGLE_TTS_KEY missing — falling back")
+        engine = "eleven" if key else "piper"
     ext = "wav" if engine == "piper" else "mp3"
     voice_id = pick_voice(key) if engine == "eleven" else None
     gvoice = google_voice() if engine == "google" else None
