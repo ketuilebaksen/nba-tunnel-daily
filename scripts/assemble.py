@@ -21,6 +21,7 @@ BODY_CUT = 3.4           # seconds per body cut (calmer, professional)
 BODY_BROLL_EVERY = 4     # every Nth body paragraph -> b-roll interlude
 NARR_GAIN = float(os.environ.get("NARR_GAIN", "12.0"))     # dB
 MUSIC_GAIN = float(os.environ.get("MUSIC_GAIN", "-18.5"))  # dB
+NARR_PEAK = float(os.environ.get("NARR_PEAK_DBFS", "-3.0"))  # safe headroom
 SFX_GAIN = float(os.environ.get("SFX_GAIN", "-15"))        # dB
 MAX_SFX = int(os.environ.get("MAX_SFX", "5"))
 CRF_CUT = os.environ.get("CRF_CUT", "16")      # b-roll cuts (lower = sharper)
@@ -55,8 +56,21 @@ def ffdur(path):
         return 0.0
 
 def esc(text, maxlen=40):
-    text = re.sub(r"[^0-9A-Za-z ÇĞİÖŞÜçğıöşü'\-\.%$]", "", str(text))
-    return text.replace("'", r"\'").replace(":", r"\:").upper()[:maxlen]
+    """On-screen caption text, safe for an ffmpeg drawtext value.
+
+    The value is wrapped in single quotes inside the filtergraph, and ffmpeg
+    offers no way to put a single quote *inside* those quotes — a backslash
+    does not help. An apostrophe therefore closed the string early and the
+    rest of the filter was parsed as garbage ("No such filter: 't/0.22'").
+    So quotes, colons, percent signs and backslashes are dropped outright
+    rather than escaped: nothing special is left to go wrong.
+    """
+    t = str(text)
+    for ch in ("'", "‘", "’", "`", "\"", "“", "”", "\\", "%", ":"):
+        t = t.replace(ch, " " if ch in (":",) else "")
+    t = re.sub(r"[^0-9A-Za-z ÇĞİÖŞÜçğıöşü\-\.\$]", " ", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    return t.upper()[:maxlen].strip()
 
 def media_lib(sub, exts):
     files = []
@@ -93,6 +107,7 @@ def broll_cut(src, start, dur, out, caption=None, big_word=None, flash=True):
           "crop=1920:1080", f"fps={FPS}"]
     if SHARPEN:
         vf.insert(2, "unsharp=3:3:0.3:3:3:0.0")
+    n_plain = len(vf)          # everything after this point is text overlay
     # transition flash disabled (owner preference)
     if caption:
         vf.append(
@@ -104,28 +119,45 @@ def broll_cut(src, start, dur, out, caption=None, big_word=None, flash=True):
             f"drawtext=fontfile='{FONT}':text='{esc(big_word, 24)}':"
             f"fontsize=132:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2-60:"
             f"borderw=7:bordercolor=black@0.85:alpha='min(1,t/0.22)'")
-    run(["ffmpeg", "-y", "-v", "error", "-ss", f"{start:.2f}", "-i", src,
-         "-t", f"{dur:.3f}", "-vf", ",".join(vf), "-r", str(FPS),
-         "-c:v", "libx264", "-preset", PRESET, "-crf", CRF_CUT,
-         "-x264-params", "aq-mode=3:psy-rd=1.0",
-         "-pix_fmt", "yuv420p", "-an", out])
+    def _encode(filters):
+        run(["ffmpeg", "-y", "-v", "error", "-ss", f"{start:.2f}", "-i", src,
+             "-t", f"{dur:.3f}", "-vf", ",".join(filters), "-r", str(FPS),
+             "-c:v", "libx264", "-preset", PRESET, "-crf", CRF_CUT,
+             "-x264-params", "aq-mode=3:psy-rd=1.0",
+             "-pix_fmt", "yuv420p", "-an", out])
+    try:
+        _encode(vf)
+    except subprocess.CalledProcessError:
+        # a caption must never cost us the whole video — drop the text and go on
+        print(f"[assemble] text overlay failed on {os.path.basename(src)} "
+              f"— rendering this cut without it", flush=True)
+        _encode(vf[:n_plain])
 
 def photo_segment(img, dur, out, caption=None):
     frames = max(2, round(dur * FPS))
     # slow, professional ken-burns: 1.00 -> 1.08 across the whole segment
     z = f"min(1+{PHOTO_ZOOM}*on/{frames},{1 + PHOTO_ZOOM})"
-    vf = (f"scale=2400:-2:flags=lanczos+accurate_rnd,crop=2400:1350,"
-          f"zoompan=z='{z}':d={frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
-          f":s=1920x1080:fps={FPS},format=yuv420p")
+    plain = (f"scale=2400:-2:flags=lanczos+accurate_rnd,crop=2400:1350,"
+             f"zoompan=z='{z}':d={frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
+             f":s=1920x1080:fps={FPS},format=yuv420p")
+    vf = plain
     if caption:
         vf += (f",drawtext=fontfile='{FONT}':text='{esc(caption)}':"
                f"fontsize=62:fontcolor=white:x=(w-text_w)/2:y=h-150:"
                f"borderw=5:bordercolor=black@0.9:"
                f"shadowx=3:shadowy=3:shadowcolor=black@0.5")
-    run(["ffmpeg", "-y", "-v", "error", "-loop", "1", "-i", img,
-         "-vf", vf, "-t", f"{dur:.3f}", "-r", str(FPS),
-         "-c:v", "libx264", "-preset", PRESET, "-crf", CRF_PHOTO,
-         "-pix_fmt", "yuv420p", "-an", out])
+
+    def _encode(filters):
+        run(["ffmpeg", "-y", "-v", "error", "-loop", "1", "-i", img,
+             "-vf", filters, "-t", f"{dur:.3f}", "-r", str(FPS),
+             "-c:v", "libx264", "-preset", PRESET, "-crf", CRF_PHOTO,
+             "-pix_fmt", "yuv420p", "-an", out])
+    try:
+        _encode(vf)
+    except subprocess.CalledProcessError:
+        print(f"[assemble] caption failed on {os.path.basename(img)} "
+              f"— rendering the photo without it", flush=True)
+        _encode(plain)
 
 def card_segment(card, dur, idx, out, overlay=None):
     frames = max(2, round(dur * FPS))
@@ -407,8 +439,19 @@ def main():
     mixed_path = os.path.join(BASE, "work", "narration_sfx.wav")
     try:
         from pydub import AudioSegment
-        mix = (AudioSegment.silent(duration=int(INTRO_D * 1000)) +
-               AudioSegment.from_wav(narration).apply_gain(NARR_GAIN) +
+        # The owner's spec was narration +12 dB, music -18.5 dB — i.e. the two
+        # sit 30.5 dB apart. Those numbers were set when narration came from the
+        # quiet offline voice. ElevenLabs output already peaks near 0 dBFS, so
+        # adding 12 dB on top clipped it and the result crackled. So: normalise
+        # the narration to a safe peak, then place the music the same 30.5 dB
+        # below it. The balance the owner asked for is preserved; the clipping
+        # is not.
+        narr = AudioSegment.from_wav(narration)
+        head = NARR_PEAK - narr.max_dBFS
+        print(f"[assemble] narration peak {narr.max_dBFS:.1f} dBFS "
+              f"-> {NARR_PEAK:.1f} dBFS ({head:+.1f} dB)")
+        narr = narr.apply_gain(head)
+        mix = (AudioSegment.silent(duration=int(INTRO_D * 1000)) + narr +
                AudioSegment.silent(duration=int(OUTRO_D * 1000)))
 
         # transition SFX disabled (owner preference)
@@ -427,10 +470,13 @@ def main():
                 ti += 1
                 if ti > 50:
                     break
-            bed = bed[:int(total * 1000)].apply_gain(MUSIC_GAIN)
+            bed = bed[:int(total * 1000)]
+            rel = MUSIC_GAIN - NARR_GAIN          # -30.5 dB under the narration
+            bed = bed.apply_gain(NARR_PEAK + rel - bed.max_dBFS)
             bed = bed.fade_in(2500).fade_out(3500)
             mix = mix.overlay(bed)
-            print(f"[assemble] music bed: {ti} track loops at {MUSIC_GAIN} dB")
+            print(f"[assemble] music bed: {ti} track loops, "
+                  f"{rel:.1f} dB under narration ({bed.max_dBFS:.1f} dBFS)")
         else:
             print("[assemble] no music library — narration only")
         mix.export(mixed_path, format="wav")
