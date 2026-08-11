@@ -152,6 +152,17 @@ def main():
         ch_engine = ""
     engine = (os.environ.get("TTS_ENGINE", "").strip().lower() or ch_engine
               or ("google" if gkey else ("eleven" if key else "piper")))
+    # A channel's voice is its identity. If channel.json names an engine and
+    # that engine cannot run, stop — publishing a video in the wrong (or the
+    # robotic offline) voice is worse than publishing nothing. The owner gets
+    # a "Run failed" notification and can fix the key.
+    if ch_engine == "eleven" and engine == "eleven" and not key:
+        sys.exit("[tts] fatal: channel.json asks for ElevenLabs but "
+                 "ELEVEN_API_KEY is missing/empty — refusing to fall back "
+                 "to a different voice.")
+    if ch_engine == "google" and engine == "google" and not gkey:
+        sys.exit("[tts] fatal: channel.json asks for Google but "
+                 "GOOGLE_TTS_KEY is missing/empty — refusing to fall back.")
     if engine == "eleven" and not key:
         print("[tts] ELEVEN_API_KEY missing — falling back")
         engine = "google" if gkey else "piper"
