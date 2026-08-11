@@ -2,8 +2,8 @@ name: daily-video
 on:
   schedule:
     # Istanbul = UTC+3. Each run starts ~2h before the upload deadline.
-    - cron: "0 1 * * *"      # starts 04:00 Istanbul -> uploaded by 06:00 -> publishes 12:00
-    - cron: "0 10 * * *"     # starts 13:00 Istanbul -> uploaded by 15:00 -> publishes 18:00
+    - cron: "0 1 * * *"      # starts 04:00 Istanbul -> uploaded by 06:00 -> publishes 09:00
+    - cron: "0 10 * * *"     # starts 13:00 Istanbul -> uploaded by 15:00 -> publishes 21:00
   workflow_dispatch:
     inputs:
       privacy:
@@ -37,15 +37,15 @@ jobs:
 
       - name: Pick today's slot
         run: |
-          # morning run  -> publishes 12:00 Istanbul = 09:00 UTC
-          # afternoon run-> publishes 18:00 Istanbul = 15:00 UTC
+          # morning run   -> publishes 09:00 Istanbul = 06:00 UTC
+          # afternoon run -> publishes 21:00 Istanbul = 18:00 UTC
           H=$(date -u +%H)
           if [ "$H" -lt 6 ]; then
             echo "SLOT=early"        >> $GITHUB_ENV
-            echo "PUBLISH_UTC=09:00" >> $GITHUB_ENV
+            echo "PUBLISH_UTC=06:00" >> $GITHUB_ENV
           else
             echo "SLOT=late"         >> $GITHUB_ENV
-            echo "PUBLISH_UTC=15:00" >> $GITHUB_ENV
+            echo "PUBLISH_UTC=18:00" >> $GITHUB_ENV
           fi
 
       - name: Generate script (Claude + web search)
@@ -79,15 +79,16 @@ jobs:
 
       - name: Download media libraries
         env:
-          # MEDIA_REPO lets this channel borrow the b-roll/music already
-          # uploaded to the other repo instead of re-uploading gigabytes.
+          # MEDIA_REPO: borrow b-roll/photos from the other repo.
+          # MUSIC_REPO: this channel keeps its OWN music (defaults to this repo).
           GH_TOKEN: ${{ secrets.ADMIN_PAT || github.token }}
           MEDIA_REPO: ${{ vars.MEDIA_REPO || github.repository }}
+          MUSIC_REPO: ${{ vars.MUSIC_REPO || github.repository }}
         run: |
           mkdir -p work/broll work/music work/photos
-          echo "media source: $MEDIA_REPO"
+          echo "b-roll source: $MEDIA_REPO | music source: $MUSIC_REPO"
           gh release download broll -R "$MEDIA_REPO" -D work/broll || echo "no b-roll release"
-          gh release download music -R "$MEDIA_REPO" -D work/music || echo "no music release"
+          gh release download music -R "$MUSIC_REPO" -D work/music || echo "no music release"
           gh release download photos -R "$MEDIA_REPO" -D work/photos || echo "no photos release"
           python3 scripts/photos.py content/current/script.json || echo "auto photos skipped"
 
@@ -115,7 +116,7 @@ jobs:
         run: python3 scripts/upload.py content/current/meta.json
 
       - name: Kapak notu (issue + e-posta)
-        if: always()
+        if: success()        # only when the video really reached YouTube
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -141,12 +142,11 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: video-${{ github.run_number }}
+          name: run-${{ github.run_number }}
           path: |
-            work/final.mp4
-            work/thumbnail.jpg
-            work/thumbnail_yt.jpg
             content/current/meta.json
+            content/current/script.json
+            work/kapak_brief.md
             upload_result.json
-          retention-days: 2
+          retention-days: 5
           if-no-files-found: ignore

@@ -56,12 +56,14 @@ jobs:
 
       - name: Download media libraries
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.ADMIN_PAT || github.token }}
+          MEDIA_REPO: ${{ vars.MEDIA_REPO || github.repository }}
+          MUSIC_REPO: ${{ vars.MUSIC_REPO || github.repository }}
         run: |
           mkdir -p work/broll work/music work/photos
-          gh release download broll -R "$GITHUB_REPOSITORY" -D work/broll || echo "no b-roll release"
-          gh release download music -R "$GITHUB_REPOSITORY" -D work/music || echo "no music release"
-          gh release download photos -R "$GITHUB_REPOSITORY" -D work/photos || echo "no photos release"
+          gh release download broll -R "$MEDIA_REPO" -D work/broll || echo "no b-roll release"
+          gh release download music -R "$MUSIC_REPO" -D work/music || echo "no music release"
+          gh release download photos -R "$MEDIA_REPO" -D work/photos || echo "no photos release"
           python3 scripts/photos.py content/current/script.json || echo "auto photos skipped"
 
       - name: Visuals
