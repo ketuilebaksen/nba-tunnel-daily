@@ -1,9 +1,21 @@
 name: render-upload
+# Manual-script flow: the owner writes the script, drops script.json + meta.json
+# into content/current, and this renders the video.
+#
+# This workflow CANNOT upload to YouTube. The upload step was removed on
+# purpose: the owner publishes by hand. The finished video is published as a
+# GitHub Release and the owner downloads it from there. Relying on a "privacy"
+# field in meta.json was not enough — a stale meta.json once put a video on the
+# channel by accident. No step, no accident.
 on:
   push:
     paths:
       - "content/current/**"
   workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
 
 concurrency:
   group: render
@@ -34,27 +46,26 @@ jobs:
         env:
           GOOGLE_TTS_KEY: ${{ secrets.GOOGLE_TTS_KEY }}
           ELEVEN_API_KEY: ${{ secrets.ELEVEN_API_KEY }}
-          ELEVEN_VOICE: ${{ vars.ELEVEN_VOICE || 'alex' }}
           ELEVEN_MODEL: ${{ vars.ELEVEN_MODEL || 'eleven_flash_v2_5' }}
         run: python3 scripts/tts.py content/current/script.json
 
       - name: Download media libraries
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.ADMIN_PAT || github.token }}
+          MEDIA_REPO: ${{ vars.MEDIA_REPO || github.repository }}
+          MUSIC_REPO: ${{ vars.MUSIC_REPO || github.repository }}
         run: |
           mkdir -p work/broll work/music work/photos
-          gh release download broll -R "$GITHUB_REPOSITORY" -D work/broll || echo "no b-roll release"
-          gh release download music -R "$GITHUB_REPOSITORY" -D work/music || echo "no music release"
-          gh release download photos -R "$GITHUB_REPOSITORY" -D work/photos || echo "no photos release"
+          gh release download broll -R "$MEDIA_REPO" -D work/broll || echo "no b-roll release"
+          gh release download music -R "$MUSIC_REPO" -D work/music || echo "no music release"
+          gh release download photos -R "$MEDIA_REPO" -D work/photos || echo "no photos release"
           python3 scripts/photos.py content/current/script.json || echo "auto photos skipped"
 
       - name: Visuals
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_IMAGE_QUALITY: ${{ vars.OPENAI_IMAGE_QUALITY || 'high' }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GOOGLE_TTS_KEY: ${{ secrets.GOOGLE_TTS_KEY }}
-          IMAGE_MODEL: ${{ vars.IMAGE_MODEL }}
         run: python3 scripts/visuals.py content/current/script.json
 
       - name: Sound effects
@@ -63,27 +74,46 @@ jobs:
       - name: Assemble
         run: python3 scripts/assemble.py content/current/script.json
 
-      - name: Upload to YouTube
+      - name: Publish the video for download
+        id: release
         env:
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-        run: python3 scripts/upload.py content/current/meta.json
-
-      - name: Result summary
-        if: always()
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo "## Result" >> $GITHUB_STEP_SUMMARY
-          cat upload_result.json >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "upload failed — check logs" >> $GITHUB_STEP_SUMMARY
+          TAG="video-$(date -u +%Y%m%d-%H%M)"
+          T=$(python3 -c "import json;print(json.load(open('content/current/meta.json'))['title'][:90])")
+          SIZE=$(du -h work/final.mp4 | cut -f1)
+          gh release create "$TAG" work/final.mp4 \
+            -R "$GITHUB_REPOSITORY" -t "$T" \
+            -n "Hazir video ($SIZE). Asagidaki final.mp4 dosyasina tiklayip indir."
+          URL="https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
+          echo "url=$URL" >> $GITHUB_OUTPUT
+          {
+            echo "## Video hazir"
+            echo ""
+            echo "**$T**"
+            echo ""
+            echo "Indirme sayfasi: $URL"
+            echo ""
+            echo "Boyut: $SIZE"
+          } >> $GITHUB_STEP_SUMMARY
 
-      - name: Keep artifacts (2 days)
+      - name: Bildirim (issue)
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: video-${{ github.run_number }}
-          path: |
-            work/final.mp4
-            work/thumbnail.jpg
-            upload_result.json
-          retention-days: 2
-          if-no-files-found: ignore
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/brief.py content/current/script.json \
+                                   content/current/meta.json > /dev/null || exit 0
+          T=$(python3 -c "import json;print(json.load(open('content/current/meta.json'))['title'][:70])")
+          {
+            echo ""
+            echo "---"
+            echo "**Videoyu indir:** ${{ steps.release.outputs.url }}"
+          } >> work/kapak_brief.md
+          gh issue create -R "$GITHUB_REPOSITORY" \
+            --title "VIDEO HAZIR — $T" \
+            --body-file work/kapak_brief.md \
+            --assignee "${{ github.repository_owner }}" \
+          || gh issue create -R "$GITHUB_REPOSITORY" \
+            --title "VIDEO HAZIR — $T" \
+            --body-file work/kapak_brief.md
