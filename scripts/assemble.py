@@ -40,9 +40,15 @@ try:
     CLIP_OFFSET = int(CH.get("clip_offset", 37))
     BOUNCE = bool(CH.get("bounce", True))
     PHOTO_ZOOM = float(CH.get("photo_zoom", 0.08))
+    BRAND = CH.get("name", "NY KNICKS DAILY")
 except Exception as _e:
     print(f"[assemble] channel config default ({_e})")
     OVERLAY_EVERY, CLIP_OFFSET, BOUNCE, PHOTO_ZOOM = 25.0, 37, True, 0.08
+    BRAND = "NY KNICKS DAILY"
+
+# The branded opener runs silent, so the video starts with a few seconds of
+# nobody talking. Set INTRO=0 and the video opens on the first spoken word.
+INTRO_ON = os.environ.get("INTRO", "1") != "0"
 
 def run(cmd):
     subprocess.run(cmd, check=True)
@@ -137,7 +143,13 @@ def photo_segment(img, dur, out, caption=None):
     frames = max(2, round(dur * FPS))
     # slow, professional ken-burns: 1.00 -> 1.08 across the whole segment
     z = f"min(1+{PHOTO_ZOOM}*on/{frames},{1 + PHOTO_ZOOM})"
-    plain = (f"scale=2400:-2:flags=lanczos+accurate_rnd,crop=2400:1350,"
+    # A panoramic photo (a stadium shot, say) scaled to 2400 wide comes out far
+    # shorter than 1350, and cropping to a size larger than the frame is an
+    # ffmpeg error, not a no-op — one such photo used to kill the whole render.
+    # force_original_aspect_ratio=increase guarantees both sides reach the
+    # target first, so the crop always has something to cut from.
+    plain = (f"scale=2400:1350:force_original_aspect_ratio=increase:"
+             f"flags=lanczos+accurate_rnd,crop=2400:1350,"
              f"zoompan=z='{z}':d={frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
              f":s=1920x1080:fps={FPS},format=yuv420p")
     vf = plain
@@ -262,13 +274,16 @@ def photo_lookup(photos):
 def make_intro(broll, seg_dir):
     """Fast branded opener: 2 flash cuts + title card. Returns (files, duration)."""
     files, d_total = [], 0.0
+    if not INTRO_ON:
+        print("[assemble] intro off — video ilk soylenen kelimeyle basliyor")
+        return files, d_total
     if broll.any():
         for k in range(2):
             p = os.path.join(seg_dir, f"intro_cut{k}.mp4")
             if not (os.path.exists(p) and os.path.getsize(p) > 5000):
                 src, start = broll.pick(1.1)
                 broll_cut(src, start, 1.1, p,
-                          big_word="NY KNICKS DAILY" if k == 1 else None, flash=True)
+                          big_word=BRAND if k == 1 else None, flash=True)
             files.append(p)
             d_total += 1.1
     card = os.path.join(BASE, "work", "intro.jpg")
@@ -391,9 +406,15 @@ def main():
                 if photo and remaining > 5.5:
                     pd = min(6.0, remaining * 0.5)
                     pp = os.path.join(seg_dir, f"b_{i:04d}_photo.mp4")
-                    photo_segment(photo, pd, pp, caption=cap)
-                    parts.append(pp)
-                    remaining -= pd
+                    try:
+                        photo_segment(photo, pd, pp, caption=cap)
+                        parts.append(pp)
+                        remaining -= pd
+                    except Exception as e:
+                        # a single unusable photo must never cost the video —
+                        # give the time back to the b-roll and carry on
+                        print(f"[assemble] photo skipped "
+                              f"({os.path.basename(photo)}: {e})", flush=True)
                 ncuts = max(1, round(remaining / BODY_CUT))
                 cd = remaining / ncuts
                 for k in range(ncuts):
