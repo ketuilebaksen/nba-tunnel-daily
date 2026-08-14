@@ -105,6 +105,12 @@ jobs:
           NOTE=""
           FILES="work/final.mp4"
           if [ "$SIZE_B" -gt "$TARGET" ]; then
+            # Bolme isi videonun ikinci bir kopyasini yaziyor. Kurgu artiklari
+            # (segmentler, stok videolar, fotograflar) diskte durdugu surece
+            # yer kalmiyor ve "No space left on device" ile dusuyorduk.
+            # Bunlar bu noktada tamamen gereksiz, siliyoruz.
+            rm -rf work/segs work/broll work/photos work/cards work/music
+            df -h / | tail -1
             DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 work/final.mp4)
             PARTS=$(( SIZE_B / TARGET + 1 ))
             SEG=$(python3 -c "print(max(60,int(float('$DUR')/$PARTS)+1))")

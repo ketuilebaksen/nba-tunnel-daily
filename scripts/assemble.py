@@ -24,8 +24,12 @@ MUSIC_GAIN = float(os.environ.get("MUSIC_GAIN", "-18.5"))  # dB
 NARR_PEAK = float(os.environ.get("NARR_PEAK_DBFS", "-3.0"))  # safe headroom
 SFX_GAIN = float(os.environ.get("SFX_GAIN", "-15"))        # dB
 MAX_SFX = int(os.environ.get("MAX_SFX", "5"))
-CRF_CUT = os.environ.get("CRF_CUT", "16")      # b-roll cuts (lower = sharper)
-CRF_PHOTO = os.environ.get("CRF_PHOTO", "16")
+# CRF 16 gorsel olarak kusursuzdu ama 32 dakikalik bir video 2.2 GB ediyordu ve
+# GitHub tek dosyada 2 GB'i kabul etmiyor. CRF 20 gozle ayirt edilemeyecek kadar
+# yakin, dosyayi yariya indiriyor. YouTube zaten yeniden kodluyor.
+# Daha keskin isteyen depo degiskeni CRF_CUT=16 ile geri alabilir.
+CRF_CUT = os.environ.get("CRF_CUT", "20")      # b-roll cuts (lower = sharper)
+CRF_PHOTO = os.environ.get("CRF_PHOTO", "20")
 PRESET = os.environ.get("X264_PRESET", "fast")
 SHARPEN = os.environ.get("SHARPEN", "0") == "1"  # off: keep source look
 OVERLAY_KINDS = ["speech", "lower3", "comic", "chat"]
