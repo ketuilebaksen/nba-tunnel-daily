@@ -85,13 +85,18 @@ def card(seed, kicker, title, lines, page, total, out):
     d = ImageDraw.Draw(img, "RGBA")
     draw_common(d, kicker, page, total)
     tf = font("Anton-Regular.ttf", 110)
-    tl = wrap(d, title.upper(), tf, W - 260)[:3]
+    tl = wrap(d, title.upper(), tf, W - 260)[:3] if title else []
     y = 300 if len(lines) else 380
-    d.rectangle([90, y + 8, 106, y + len(tl) * 118 - 10], fill=ORANGE)
-    for ln in tl:
-        d.text((140, y), ln, font=tf, fill=WHITE)
-        y += 118
-    y += 46
+    # In audio-driven mode most blocks carry no on-screen text at all — that is
+    # the owner's rule, not a bug. So a card with no title is normal, and the
+    # accent bar (whose height is derived from the number of title lines) must
+    # simply not be drawn rather than collapse to a negative rectangle.
+    if tl:
+        d.rectangle([90, y + 8, 106, y + len(tl) * 118 - 10], fill=ORANGE)
+        for ln in tl:
+            d.text((140, y), ln, font=tf, fill=WHITE)
+            y += 118
+        y += 46
     bf = font("Inter-Var.ttf", 52)
     bf.set_variation_by_axes([28, 600])
     for ln in lines[:4]:
