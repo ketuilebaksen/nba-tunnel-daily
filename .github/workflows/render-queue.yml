@@ -122,9 +122,14 @@ jobs:
             NOTE=" Video $PARTS parca halinde, sirayla indir."
           fi
 
+          # Ayni ses dosyasi icin iki calistirma ust uste gelirse ikincisi
+          # "tag already exists" ile duserdi ve hazir video cope giderdi.
+          # Surum zaten varsa dosyayi onun uzerine ekliyoruz.
           gh release create "${{ matrix.item.tag }}" $FILES \
             -R "$GITHUB_REPOSITORY" -t "${{ matrix.item.title }}" \
-            -n "Hazir video ($SIZE).$NOTE Asagidaki dosyalara tikla."
+            -n "Hazir video ($SIZE).$NOTE Asagidaki dosyalara tikla." \
+          || gh release upload "${{ matrix.item.tag }}" $FILES \
+            -R "$GITHUB_REPOSITORY" --clobber
           URL="https://github.com/$GITHUB_REPOSITORY/releases/tag/${{ matrix.item.tag }}"
           echo "url=$URL" >> $GITHUB_OUTPUT
           {
