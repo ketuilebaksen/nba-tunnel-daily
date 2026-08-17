@@ -1,51 +1,30 @@
-name: render-queue
-# Sıra ile değil, aynı anda: content/queue içine kaç ses dosyası atarsan
-# her biri için ayrı bir makine kalkar ve kendi videosunu kurar.
+name: render-upload
+# Manual-script flow: the owner writes the script, drops script.json + meta.json
+# into content/current, and this renders the video.
 #
-# Kural: dosyanın adı videonun başlığıdır ve aynı zamanda kimliğidir.
-# O ada karşılık gelen bir Release zaten varsa o dosya atlanır — yani
-# kuyruğu temizlemeyi unutsan da aynı video ikinci kez render edilmez.
-# Yeniden kurdurmak istersen: ya dosyanın adını değiştir, ya o Release'i sil.
-#
-# Bu workflow YouTube'a hiçbir şey yüklemez. Video Release olarak yayınlanır,
-# indirmeyi ve kanala yüklemeyi sahibi elle yapar.
+# This workflow CANNOT upload to YouTube. The upload step was removed on
+# purpose: the owner publishes by hand. The finished video is published as a
+# GitHub Release and the owner downloads it from there. Relying on a "privacy"
+# field in meta.json was not enough — a stale meta.json once put a video on the
+# channel by accident. No step, no accident.
 on:
   push:
     paths:
-      - "content/queue/**"
+      - "content/current/**"
   workflow_dispatch:
 
 permissions:
   contents: write
   issues: write
 
-jobs:
-  plan:
-    runs-on: ubuntu-latest
-    outputs:
-      jobs: ${{ steps.list.outputs.jobs }}
-      count: ${{ steps.list.outputs.count }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Kuyruğu oku
-        id: list
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/queue_plan.py
+concurrency:
+  group: render
+  cancel-in-progress: false
 
+jobs:
   video:
-    needs: plan
-    if: needs.plan.outputs.count != '0'
     runs-on: ubuntu-latest
-    timeout-minutes: 330
-    strategy:
-      fail-fast: false
-      # Wikimedia oyuncu fotoğraflarını çekerken aynı anda çok istek atarsak
-      # 429 yiyoruz; üçer üçer gitmek hem hızlı hem güvenli.
-      max-parallel: 3
-      matrix:
-        item: ${{ fromJson(needs.plan.outputs.jobs) }}
-    name: ${{ matrix.item.title }}
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
 
@@ -56,36 +35,33 @@ jobs:
       - name: Install deps
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
-          pip install -q Pillow numpy pydub rembg onnxruntime opencv-python-headless faster-whisper
+          pip install -q google-api-python-client google-auth Pillow piper-tts numpy pydub rembg onnxruntime opencv-python-headless
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
-      - name: Hareketli grafikler (Remotion)
-        continue-on-error: true
+      - name: Piper fallback voice
         run: |
-          # Remotion sadece açılıştaki grafikleri üretiyor; kurulamazsa video
-          # yine çıkar, sayfalar eski ffmpeg yöntemiyle çizilir.
-          if [ -f scripts/remotion_setup.py ]; then
-            python3 scripts/remotion_setup.py
-            if [ -x /usr/bin/google-chrome ]; then
-              echo "REMOTION_CHROME=/usr/bin/google-chrome" >> $GITHUB_ENV
-            else
-              (cd remotion && npx --yes remotion browser ensure) || true
-            fi
-          else
-            echo "remotion_setup.py yok — grafikler ffmpeg ile cizilecek"
-          fi
+          mkdir -p assets/voice
+          curl -sL https://github.com/rhasspy/piper/releases/download/v0.0.2/voice-en-us-ryan-high.tar.gz | tar xz -C assets/voice/
 
-      - name: Sesi çöz ve kurguyu ona göre kes
+      - name: Narration (own recording, else text-to-speech)
         env:
-          AUDIO_FILE: ${{ matrix.item.path }}
+          GOOGLE_TTS_KEY: ${{ secrets.GOOGLE_TTS_KEY }}
+          ELEVEN_API_KEY: ${{ secrets.ELEVEN_API_KEY }}
+          ELEVEN_MODEL: ${{ vars.ELEVEN_MODEL || 'eleven_flash_v2_5' }}
           WHISPER_MODEL: ${{ vars.WHISPER_MODEL || 'small' }}
           PUNCH_EVERY: ${{ vars.PUNCH_EVERY || '4' }}
         run: |
-          mkdir -p content/current
-          python3 scripts/align.py
+          # An audio file in content/current means the owner recorded (or
+          # generated) the narration themselves. Then we do not synthesise
+          # anything — we listen to that file and cut the video to it.
+          if ls content/current/*.mp3 content/current/*.wav \
+                content/current/*.m4a content/current/*.aac 2>/dev/null | head -1 | grep -q .; then
+            echo "audio found -> aligning to the recording"
+            pip install -q faster-whisper
+            python3 scripts/align.py
+          else
+            echo "no audio -> synthesising from script.json"
+            python3 scripts/tts.py content/current/script.json
+          fi
 
       - name: Download media libraries
         env:
@@ -102,26 +78,31 @@ jobs:
           python3 scripts/photos.py content/current/script.json || echo "auto photos skipped"
 
       - name: Visuals
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_TTS_KEY: ${{ secrets.GOOGLE_TTS_KEY }}
         run: python3 scripts/visuals.py content/current/script.json
 
       - name: Sound effects
         run: python3 scripts/sfx.py
 
       - name: Assemble
-        env:
-          # sessiz açılış yok: video ilk söylenen kelimeyle başlasın
-          INTRO: "0"
         run: python3 scripts/assemble.py content/current/script.json
 
-      - name: Videoyu indirmeye aç
+      - name: Publish the video for download
         id: release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          TAG="video-$(date -u +%Y%m%d-%H%M)"
+          T=$(python3 -c "import json;print(json.load(open('content/current/meta.json'))['title'][:90])")
           SIZE=$(du -h work/final.mp4 | cut -f1)
 
-          # GitHub tek dosyada 2 GB siniri koyuyor; uzun bir kayit bunu asarsa
-          # video kaybolmasin diye parcalara bolup oyle yayinliyoruz.
+          # GitHub tek bir dosyada 2 GB'dan fazlasini kabul etmiyor. Uzun bir
+          # video bu siniri asinca bir bucuk saatlik render cope gidiyordu.
+          # Simdi buyuk dosya parcalara bolunuyor; parcalar ayni kalitede,
+          # yeniden kodlama yok, sadece kesiliyor.
           SIZE_B=$(stat -c%s work/final.mp4)
           TARGET=1600000000
           NOTE=""
@@ -136,26 +117,24 @@ jobs:
             DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 work/final.mp4)
             PARTS=$(( SIZE_B / TARGET + 1 ))
             SEG=$(python3 -c "print(max(60,int(float('$DUR')/$PARTS)+1))")
-            echo "video $SIZE -> $PARTS parca"
+            echo "video $SIZE, tek parca yuklenemez -> $PARTS parcaya bolunuyor"
             ffmpeg -y -v error -i work/final.mp4 -c copy -map 0 \
                    -f segment -segment_time "$SEG" -reset_timestamps 1 \
                    "work/bolum_%02d.mp4"
             FILES=$(ls work/bolum_*.mp4 | tr '\n' ' ')
-            NOTE=" Video $PARTS parca halinde, sirayla indir."
+            NOTE=" Video $PARTS parca halinde: bolum_00, bolum_01 ... sirayla indir."
           fi
 
-          # Ayni ses dosyasi icin iki calistirma ust uste gelirse ikincisi
-          # "tag already exists" ile duserdi ve hazir video cope giderdi.
-          # Surum zaten varsa dosyayi onun uzerine ekliyoruz.
-          gh release create "${{ matrix.item.tag }}" $FILES \
-            -R "$GITHUB_REPOSITORY" -t "${{ matrix.item.title }}" \
-            -n "Hazir video ($SIZE).$NOTE Asagidaki dosyalara tikla." \
-          || gh release upload "${{ matrix.item.tag }}" $FILES \
-            -R "$GITHUB_REPOSITORY" --clobber
-          URL="https://github.com/$GITHUB_REPOSITORY/releases/tag/${{ matrix.item.tag }}"
+          gh release create "$TAG" $FILES \
+            -R "$GITHUB_REPOSITORY" -t "$T" \
+            -n "Hazir video ($SIZE).$NOTE Asagidaki dosyalara tiklayip indir." \
+          || gh release upload "$TAG" $FILES -R "$GITHUB_REPOSITORY" --clobber
+          URL="https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
           echo "url=$URL" >> $GITHUB_OUTPUT
           {
-            echo "## ${{ matrix.item.title }}"
+            echo "## Video hazir"
+            echo ""
+            echo "**$T**"
             echo ""
             echo "Indirme sayfasi: $URL"
             echo ""
@@ -169,15 +148,16 @@ jobs:
         run: |
           python3 scripts/brief.py content/current/script.json \
                                    content/current/meta.json > /dev/null || exit 0
+          T=$(python3 -c "import json;print(json.load(open('content/current/meta.json'))['title'][:70])")
           {
             echo ""
             echo "---"
             echo "**Videoyu indir:** ${{ steps.release.outputs.url }}"
           } >> work/kapak_brief.md
           gh issue create -R "$GITHUB_REPOSITORY" \
-            --title "VIDEO HAZIR — ${{ matrix.item.title }}" \
+            --title "VIDEO HAZIR — $T" \
             --body-file work/kapak_brief.md \
             --assignee "${{ github.repository_owner }}" \
           || gh issue create -R "$GITHUB_REPOSITORY" \
-            --title "VIDEO HAZIR — ${{ matrix.item.title }}" \
+            --title "VIDEO HAZIR — $T" \
             --body-file work/kapak_brief.md
