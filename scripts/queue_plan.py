@@ -16,6 +16,10 @@ import json, os, re, subprocess, sys
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 Q = os.path.join(BASE, "content", "queue")
 AUDIO = (".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac")
+# A queued item can now be the WRITTEN script instead of a recording. The rule
+# is unchanged — the file name is the title — but a .txt is spoken by
+# ElevenLabs first and then goes down exactly the same path as a recording.
+TEXT = (".txt", ".md")
 MAX_JOBS = 20                     # GitHub'ın eşzamanlı iş sınırına saygı
 
 
@@ -58,7 +62,7 @@ def main():
         return emit([])
 
     files = sorted(f for f in os.listdir(Q)
-                   if f.lower().endswith(AUDIO) and not f.startswith("."))
+                   if f.lower().endswith(AUDIO + TEXT) and not f.startswith("."))
     if not files:
         print("[queue] kuyruk bos")
         return emit([])
@@ -75,7 +79,8 @@ def main():
             print(f"[queue] ayni isimde ikinci dosya atlandi: {f}")
             continue
         jobs.append({"path": os.path.join("content", "queue", f),
-                     "title": t, "tag": tag})
+                     "title": t, "tag": tag,
+                     "kind": "text" if f.lower().endswith(TEXT) else "audio"})
 
     if len(jobs) > MAX_JOBS:
         print(f"[queue] {len(jobs)} video var, bu turda ilk {MAX_JOBS} tanesi "
@@ -83,7 +88,8 @@ def main():
         jobs = jobs[:MAX_JOBS]
 
     for j in jobs:
-        print(f"[queue] KURULACAK  {j['title']}")
+        how = "metin -> ElevenLabs" if j["kind"] == "text" else "hazir ses"
+        print(f"[queue] KURULACAK  {j['title']}  ({how})")
     for t in skipped:
         print(f"[queue] zaten var   {t}")
     print(f"[queue] {len(jobs)} yeni video, {len(skipped)} atlandi")

@@ -78,9 +78,28 @@ jobs:
             echo "remotion_setup.py yok — grafikler ffmpeg ile cizilecek"
           fi
 
+      # Kuyruga metin atildiysa once sesi burada uretiyoruz. Ciktisi hazir bir
+      # kayittan farksiz, o yuzden bundan sonraki her adim ayni kaliyor.
+      - name: Metni seslendir (ElevenLabs)
+        if: matrix.item.kind == 'text'
+        id: speak
+        env:
+          ELEVEN_API_KEY: ${{ secrets.ELEVEN_API_KEY }}
+          ELEVEN_VOICE_ID: ${{ vars.ELEVEN_VOICE_ID }}
+          ELEVEN_MODEL: ${{ vars.ELEVEN_MODEL || 'eleven_flash_v2_5' }}
+          TEXT_FILE: ${{ matrix.item.path }}
+        run: |
+          if [ -z "$ELEVEN_API_KEY" ]; then
+            echo "ELEVEN_API_KEY secret'i yok — Settings > Secrets > Actions"
+            exit 1
+          fi
+          mkdir -p work
+          python3 scripts/speak.py "$TEXT_FILE" work/spoken.mp3
+          echo "audio=work/spoken.mp3" >> $GITHUB_OUTPUT
+
       - name: Sesi çöz ve kurguyu ona göre kes
         env:
-          AUDIO_FILE: ${{ matrix.item.path }}
+          AUDIO_FILE: ${{ steps.speak.outputs.audio || matrix.item.path }}
           WHISPER_MODEL: ${{ vars.WHISPER_MODEL || 'small' }}
           PUNCH_EVERY: ${{ vars.PUNCH_EVERY || '4' }}
         run: |
