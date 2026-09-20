@@ -58,10 +58,32 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.ADMIN_PAT || github.token }}
           MEDIA_REPO: ${{ vars.MEDIA_REPO || github.repository }}
+          OWN_BROLL_SAMPLE: ${{ vars.OWN_BROLL_SAMPLE || '60' }}
           MUSIC_REPO: ${{ vars.MUSIC_REPO || github.repository }}
         run: |
           mkdir -p work/broll work/music work/photos
           gh release download broll -R "$MEDIA_REPO" -D work/broll || echo "no b-roll release"
+          # NBA Tunnel'in KENDI stok havuzu. Knicks'ten gelen havuza EK olarak
+          # kullaniliyor. 250+ klibin hepsini her render'da indirmek diski
+          # dolduruyor ve dakikalar yiyor; o yuzden her videoda rastgele bir
+          # kismi cekiliyor (varsayilan 60). Her video farkli bir 60 alir.
+          # Ayri klasore iniyor ki iki havuzda ayni isimli dosya varsa ezilmesin.
+          if [ "$MEDIA_REPO" != "$GITHUB_REPOSITORY" ]; then
+            mkdir -p work/broll/own
+            gh release view broll -R "$GITHUB_REPOSITORY" --json assets \
+              -q '.assets[].name' 2>/dev/null \
+              | shuf -n "${OWN_BROLL_SAMPLE:-60}" > work/own_pick.txt || true
+            n=0
+            while IFS= read -r f; do
+              [ -n "$f" ] || continue
+              pat=$(printf '%s' "$f" | sed 's/[][*?\\]/\\&/g')
+              if gh release download broll -R "$GITHUB_REPOSITORY" -p "$pat" \
+                   -D work/broll/own --clobber >/dev/null 2>&1; then
+                n=$((n+1))
+              fi
+            done < work/own_pick.txt
+            echo "kendi havuzundan $n klip indirildi (toplam $(wc -l < work/own_pick.txt) secildi)"
+          fi
           gh release download music -R "$MUSIC_REPO" -D work/music || echo "no music release"
           gh release download photos -R "$MEDIA_REPO" -D work/photos || echo "no photos release"
           python3 scripts/photos.py content/current/script.json || echo "auto photos skipped"
