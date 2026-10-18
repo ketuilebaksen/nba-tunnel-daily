@@ -21,10 +21,13 @@ import json, os, re, subprocess, sys, urllib.parse
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 Q = os.path.join(BASE, "content", "queue")
 AUDIO = (".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac")
-# A queued item can now be the WRITTEN script instead of a recording. The rule
-# is unchanged — the file name is the title — but a .txt is spoken by
-# ElevenLabs first and then goes down exactly the same path as a recording.
-TEXT = (".txt", ".md")
+# Bu kanalda ses disaridan geliyor (sahibin kendi ses klonu programi), o
+# yuzden kuyruk SADECE ses dosyasi kabul ediyor. Yanlislikla birakilan bir
+# .txt sessizce yok sayilir, render'i kirmaz.
+# (18 Ekim 2026: burada .txt de kabul ediliyordu; metin once ElevenLabs ile
+# render ediliyor, sonra yerel mp3 gelince ayni video tarihli etiketle ikinci
+# kez kuruluyordu — 2 metin, 4 video.)
+TEXT = ()
 MAX_JOBS = 20                     # GitHub'ın eşzamanlı iş sınırına saygı
 
 
