@@ -1,0 +1,210 @@
+# NBA TUNNEL — "THE KNICKS' MISSING SUPERSTAR IS... THE BENCH? Mike Brown's Quick Hooks, the Numbers Behind Them, and James Wiseman's Hard Truth"
+
+Tunnel fam, the Knicks lost again on Friday night, 98–93 in Philadelphia, in the opening game of NBA Cup group play. The defending champs are 2–4. That's not where anybody expected them to be. But when you dig into the numbers from the first week and a half, one trend jumps off the page, and it might be the real reason this team shouldn't be written off. The Knicks' "missing superstar" isn't a new signing or a trade. It's a coaching philosophy. Mike Brown isn't afraid to bench anybody, and the data says he's right not to be. Today we'll get into the stunning lineup numbers, what they say about the starting five, and why one player brought in to fill the Mitchell Robinson hole is now facing a hard truth about his place on this roster. Let's get into ALL of it.
+
+What's up, everybody? Welcome back to NBA Tunnel! Before we start — smash that like button. Tough loss, I know, and that's exactly when this community shows up. One tap helps this channel reach more Knicks fans. If you're new, subscribe. We're here every day, through the good weeks and the bad ones. Let's go.
+
+## THE HONEST OPENER — AND MY RECEIPTS
+
+Let's get the accountability out of the way first. Last video, I said the Knicks would win in Philadelphia and be at .500 by Monday night. Wrong. The Knicks lost 98–93, so even with a win over Brooklyn on Monday, they'll be 3–4. I'll own that. And a couple of weeks ago, I made a whole video about James Wiseman getting his big chance at center. As you'll hear today, that chance hasn't turned into much so far.
+
+One call I'll take, though: I said KAT's wrist would be fine after the scare in Chicago. He played in Philadelphia and scored 22 points. That's easily the best news of the week.
+
+And about the title: there's no new superstar on this roster. The "missing superstar" in this video is a concept, the depth and the coaching behind it. If you were expecting a trade, there isn't one. But stick around, because the numbers here are wild.
+
+## THE CHICAGO BLUEPRINT
+
+The clearest example came Wednesday in Chicago, the 19-point comeback. With several starters struggling, Brown cut their minutes and leaned on the players who were producing.
+
+- **Mikal Bridges played just 13 minutes and 2 seconds,** the lowest total of his entire Knicks career.
+- **Ten different players logged at least 13 minutes.** Eight played more than 15, and Deuce McBride played just over 14.
+- **The starting five shared the floor for only 14 of the team's 103 possessions.** That's 13.6 percent of the game. They played the first three and a half minutes of the night and the first three minutes of the second half, and they were outscored in both stretches.
+- **Every other lineup combination Brown used finished in the positive.** The bench won the game.
+
+The biggest winners:
+
+- **Jordan Clarkson:** plus-42 net rating in his minutes.
+- **Tyler Kolek:** plus-26.
+- **Landry Shamet:** plus-22.
+
+Those three gave Brown exactly what he was looking for when he turned away from his first unit. And the result was one of the most complete efforts of the young season.
+
+## IT'S NOT A ONE-GAME EXPERIMENT
+
+This is where it gets interesting. Chicago wasn't a one-off. It's a philosophy, and the numbers go back more than a season.
+
+| Span | Possessions the starting five played together |
+|---|---|
+| This season's opening week | 28.7% |
+| Last season (full) | 26.7% |
+| Since December 5th last season, when this unit was restored as the starting lineup | 30.1% |
+| The championship run | 31.8% |
+| Under the previous coaching staff, when all five were available | Over 40% |
+
+That's a massive philosophical shift. The previous regime leaned heavily on its starters. Brown spreads the floor time out. And there's a reason.
+
+## THE NUMBERS THAT EXPLAIN WHY
+
+**Last season,** including the NBA Cup and the playoffs, the starting lineup posted a 118.5 offensive rating and a 114.8 defensive rating. That's a plus-3.7 net rating across 647 possessions. That's good, but not dominant. Over more than 8,000 possessions, every other Knicks lineup combined was even better, at around plus-four.
+
+**This season,** the gap is even sharper:
+
+- **Starters:** 99.3 offensive rating, 107.9 defensive rating, a minus-8.6 net rating across 141 possessions. They've lost their minutes in four of the first five games tracked. The Detroit win was the only exception.
+- **All other lineups:** plus-3.8 over 350 possessions. They've won their minutes in all but one game.
+
+**The bigger sample** is the one that made my jaw drop. From December 5th of last season through the start of this one, a span of 59 games:
+
+- The starting five lost its minutes in 26 of them. That's a 36-win pace over a full season.
+- The rest of the rotation won its minutes in 45. That's a 63-win pace.
+
+Read that again. A 36-win pace for the starters, and a 63-win pace for everybody else.
+
+## THE CAVEAT YOU NEED TO HEAR
+
+Before anyone says "bench the starters," let me add some context, because numbers like this can mislead you.
+
+**The starters face the other team's starters.** They play the toughest minutes against the best players. Bench units often face other benches. That doesn't fully explain a gap this big, but it explains part of it.
+
+**Net rating swings wildly in small samples.** A hundred and forty-one possessions is about a game and a half. One hot shooting night from an opponent can wreck the numbers.
+
+**The starters show up when it matters most.** In the NBA Finals, this same five posted a plus-19.9 net rating as the Knicks closed out the championship. When the lights were brightest, the starters were dominant.
+
+**The early schedule wasn't easy.** Philadelphia twice, Boston on the road, Detroit as the East's last unbeaten team, and a back-to-back finishing in Chicago. That's a tough first two weeks for any starting group, let alone one with a captain coming off wrist surgery and a wing in the worst shooting slump of his career.
+
+So the lesson isn't "the starters are bad." It's this: over a long regular season, the Knicks' strength is their whole roster, and Brown is smart enough to use it.
+
+## THE BROWN PLAYBOOK: PROOF FROM LAST SEASON
+
+Some of the biggest moments of the title run were built exactly this way.
+
+**Christmas Day vs. Cleveland:** The starters struggled badly, with a minus-62.5 net rating in 16 possessions. Brown went to his other groups. They combined for a plus-12.7 net rating over 85 possessions and led a comeback.
+
+**Game 1 of the Eastern Conference Finals:** The starters were minus-44.2 in 35 possessions. Again, the other units answered, going plus-34.5 over 72 possessions. That was the night the Knicks came back from 22 down in the fourth quarter to steal Game 1 in overtime, one of the defining wins of the championship run.
+
+**Chicago, this Wednesday:** Same pattern. Brown didn't wait for his starters to find their rhythm. He made the call early, trusted his reserves, and the team responded.
+
+And fans noticed. Online, a lot of people praised Brown for his quick hooks and for rewarding the players who were actually producing. In a league where coaches often protect their stars' minutes no matter what, that kind of decision-making stands out.
+
+## WHY THIS IS THE REAL "SUPERSTAR"
+
+Here's my thesis. In the NBA, a superstar is someone who wins you games you'd otherwise lose. For the Knicks right now, that's the system: a deep bench and a coach who won't let reputation decide the rotation.
+
+Think about who's been driving the wins:
+
+- **Kolek,** with 21 assists and zero turnovers over three games before Philly.
+- **Clarkson,** a plus-42 in Chicago.
+- **Shamet,** a plus-22 while playing through an ankle twist.
+- **Drummond,** with 11 rebounds in Chicago.
+
+None of these guys are household names, and all of them are winning minutes, night after night, against real NBA competition. On most teams, depth is a luxury. For this team, it's an identity, and it's why the 2–4 record doesn't scare me as much as it might.
+
+There's one more point. Brunson, KAT, OG, Hart, and Bridges are going to find their rhythm together. They won a title together. And when they do, add that on top of a bench already winning its minutes, and this team gets very dangerous. The bench keeps the season afloat until the starters catch up.
+
+## BUT ONE ROTATION CHOICE SENDS A CLEAR MESSAGE
+
+Now the other side of Brown's quick hooks. He's rewarded the guards on his bench, but the backup center spot is still a problem. And after the first week of the season, James Wiseman is facing a hard truth.
+
+The issue got more urgent because of Karl-Anthony Towns. KAT has dealt with early foul trouble, and every time he sits, the Knicks are exposed in the middle. New York lost Mitchell Robinson to Boston this offseason, and the front office spent the summer trying to fill that gap. Andre Drummond was one answer. Wiseman, signed to the 14th standard roster spot, was supposed to be another.
+
+So far, only one of those moves has given Brown something he can use. Drummond hasn't been perfect, but he's had stretches where his rebounding and physicality made a difference, including those 11 boards in Chicago. Wiseman hasn't reached that level.
+
+## THE WISEMAN NUMBERS
+
+Through the first five games, Wiseman played a total of just 10 minutes.
+
+- **Orlando:** Most of those minutes came here. With Drummond on the bench, Brown gave Wiseman seven minutes. He used his length and crashed the glass, but the results weren't there: zero-for-five from the field, one turnover, and only two rebounds. The Knicks lost 111–102.
+- **Detroit:** One minute and 13 seconds, all of it in garbage time of the first win of the season.
+- **Chicago:** He didn't play at all.
+
+For a player brought in to provide depth at a position of need, that's a very small footprint.
+
+## WHAT BROWN IS DOING INSTEAD
+
+Instead of turning to Wiseman, Brown has experimented with OG Anunoby at center.
+
+**The small-ball group:** OG, Hart, Brunson, Shamet, and Deuce played four minutes together and posted a 122.2 defensive rating. That's not good.
+
+**Wiseman's most-used group:** Hart, Brunson, Clarkson, and Shamet with Wiseman played three minutes together and had a defensive rating of 16.7. That's incredible, but it's three minutes.
+
+Both samples are far too small to mean much. What matters is the choice itself. Brown is going small instead of playing his third center.
+
+## TWO WAYS TO READ IT
+
+There are two ways to read Wiseman's limited minutes.
+
+**One: early-season sorting.** Brown is still figuring out his rotation, which is normal for any coach in the first couple of weeks.
+
+**Two: a lack of trust.** The coaching staff simply doesn't trust him yet.
+
+The evidence leans toward the second. When a team is short on size and the coach still chooses to go small rather than play his third center, that says a lot. And remember, this is the same Mike Brown who has told everyone only five rotation spots are locked. He gives minutes to whoever earns them. So far, Wiseman hasn't.
+
+## WHY IT MATTERS MORE THAN IT SEEMS
+
+The wrist scare in Chicago showed how thin the Knicks are up front. When Towns headed to the locker room holding his wrist, the obvious question was: what if he misses time? The Knicks would have Drummond, and Wiseman, who has barely played.
+
+The good news is that KAT was back on Friday with 22 points, so the scare doesn't seem serious. But the problem is still there. One injury to Towns or Drummond would force Wiseman into a much bigger role, whether the staff is ready or not. That's why his development matters so much right now.
+
+The foul trouble is part of the same problem. When KAT picks up early fouls, Brown needs a big man he can trust for long stretches, not just a few minutes. Right now, he'd rather go small.
+
+## THE MONEY SIDE
+
+There's also a financial side. Owner James Dolan has reportedly made it clear he doesn't want the team over the second apron. The Knicks are about $3.2 million below the first apron, which is why they still can't fill the 15th roster spot.
+
+That limits what the front office can do. The Knicks can't simply add salary to bring in another center without making other changes. Every roster spot has to count, and a player who isn't earning minutes is taking up valuable space. That puts real pressure on Wiseman.
+
+If the Knicks decide they need a different backup center, the most realistic path is a trade after December 15th, using pieces like Pacôme Dadiet's now effectively expiring deal. We talked about that in the Dadiet video. That's my analysis, not a report.
+
+## THE ONE-ON-ONE MOMENT
+
+Here's a detail I find interesting. Back in late September during training camp, Brown was seen pulling Wiseman aside after practice for a one-on-one conversation. That was a sign the coach was invested in helping him grow.
+
+A little over a month later, the results on the court haven't matched that effort. But Brown is known for giving players another chance. Look at Landry Shamet, who revived his career under him. It's likely Wiseman gets another opportunity at some point. The season is young, and injuries or foul trouble could open the door again.
+
+But that next opportunity might be one of his last if he can't show he can defend, rebound, and finish around the rim in limited minutes. That's the hard truth.
+
+## WHAT WISEMAN NEEDS TO DO
+
+If his number gets called, here's the checklist. Simple jobs, done well:
+
+- **Rebound.** Two rebounds in seven minutes isn't enough for a seven-footer. Box out, chase everything, and give the guards extra possessions.
+- **Protect the rim without fouling.** Stay vertical. Contest without reaching.
+- **Finish the easy ones.** Dunks, lobs, and putbacks. Zero-for-five has to become two-for-three.
+- **Set hard screens.** Free up Brunson, Kolek, and Clarkson. Screens are the fastest way for a big man to earn a guard's trust.
+- **Don't try to do too much.** No face-up jumpers, and no forcing it. Be the role player this rotation needs.
+
+He's 25, he's been through a torn Achilles, and he's fought his way back into the league. He has the talent. Now he needs the moments, and when one comes, he has to grab it and refuse to give it back.
+
+## MONDAY: THE NETS AT THE GARDEN
+
+Next up is Monday, when the Brooklyn Nets come to Madison Square Garden. After the loss in Philly, this is a game the Knicks have to win. Watch for these things:
+
+- **How long the starters stay together.** If they struggle early, does Brown go to the bench again?
+- **Bridges' minutes.** After a career-low 13 in Chicago, can he play his way back into a bigger role?
+- **The backup center minutes.** Is it Drummond, small ball, or a Wiseman opportunity?
+- **Alvarado's ankle.** He's a Brooklyn native, so a return against the Nets would be a nice story.
+
+## MY CALL
+
+Here's my take. Mike Brown's quick-hook system is the real reason the Knicks will climb out of this hole. The bench keeps winning minutes while the starters find their rhythm. And the starters will find it, because this group was plus-19.9 in the Finals. The Knicks beat Brooklyn on Monday and get to 3–4. After two missed calls in a row, I'm going small on that one, not bold. On Wiseman, I think he gets one more real stretch of minutes within the next two weeks, likely because of foul trouble or rest. If he doesn't produce, the Knicks start looking at the backup center market after December 15th.
+
+## THE BOTTOM LINE
+
+Here's where it stands:
+
+- **The record:** The Knicks lost 98–93 in Philadelphia to open NBA Cup group play and fell to 2–4. KAT scored 22, so the wrist looks fine.
+- **The trend:** Mike Brown benches anyone. In Chicago, the starting five played together for only 14 of 103 possessions, Bridges logged a career-low 13 minutes, and Clarkson, Kolek, and Shamet were plus-42, plus-26, and plus-22.
+- **The data:** Since December 5th of last season, the starting five is on a 36-win pace in its minutes, and the rest of the rotation is on a 63-win pace. But the starters were plus-19.9 in the Finals.
+- **Wiseman:** Ten minutes in five games, zero-for-five in his one real chance, and a DNP in Chicago. Brown is going small instead.
+- **The cap:** The second-apron limits make every roster spot count.
+- **Next up:** Brooklyn at the Garden on Monday.
+
+## WRAPPING IT UP
+
+That's the full breakdown, Tunnel fam! If you made it to the end, you're the real MVP of this channel. Hit that like button, subscribe if you're new, turn on notifications, and let me hear it in the comments:
+
+- Do you love Mike Brown's quick hooks, or should he give the starters more time to find their rhythm?
+- Is the bench really this team's "superstar"?
+- Does Wiseman deserve another real chance, or should the Knicks look for a new backup center?
+- Do the Knicks handle the Nets on Monday?
+
+Let's battle it out below. Have a great day, everybody — and GO NEW YORK! Much love from NBA Tunnel. Peace!
