@@ -55,7 +55,18 @@ jobs:
 
       - name: Install deps
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          # 11 Kasim: Ubuntu guvenlik sunucusu GitHub'dan erisilemeyince apt
+          # 1 saat takilip render dustu. ffmpeg varsa kullan, apt'ye en fazla
+          # 4 dk ver, olmazsa hazir ffmpeg'i (BtbN) GitHub'dan indir.
+          if ! command -v ffmpeg >/dev/null; then
+            if ! timeout 240 bash -c 'sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg'; then
+              echo "apt erisilemedi, ffmpeg GitHub'dan indiriliyor"
+              curl -fsSL --retry 3 -o /tmp/ff.tar.xz https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
+              tar -xf /tmp/ff.tar.xz -C /tmp
+              sudo cp /tmp/ffmpeg-master-latest-linux64-gpl/bin/ff* /usr/local/bin/
+            fi
+          fi
+          ffmpeg -version | head -1
           pip install -q Pillow numpy pydub rembg onnxruntime opencv-python-headless faster-whisper
 
       - uses: actions/setup-node@v4
